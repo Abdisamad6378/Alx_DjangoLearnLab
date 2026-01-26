@@ -1,2 +1,1 @@
-Book.objects.filter(id=1).delete()
-print("Book deleted by ID")
+from bookshelf.models import Book book = Book.objects.get(pk=1) book.delete()

@@ -1,1 +1,2 @@
-Book.objects.filter(id=1).update(title="Nineteen Eighty-Four")
+from bookshelf.models import Book book = Book.objects.get(pk=1), book.title="Nineteen Eighty-Four", book.save()
+#Nineteen Eighty-Four
