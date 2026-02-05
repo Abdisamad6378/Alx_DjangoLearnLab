@@ -6,6 +6,7 @@ class Author(models.Model):
     
     def __str__(self):
         return self.name
+    
 class Book(models.Model):
     title = models.CharField(max_length=30)
     author = models.ForeignKey(
@@ -16,7 +17,7 @@ class Book(models.Model):
     )
     
 
-class Library(models.Model):
+class library(models.Model):
     title = models.CharField(max_length=40)
     book = models.ManyToManyField(
         Book,
@@ -26,7 +27,7 @@ class Library(models.Model):
     class Librarian(models.Model):
         name = models.CharField(max_length=30)
         Library= models.OneToOneField(
-            Library,
+            library,
             realted_name = 'librarian'
         )
         
