@@ -17,7 +17,7 @@ class Book(models.Model):
     )
     
 
-class library(models.Model):
+class Library(models.Model):
     title = models.CharField(max_length=40)
     book = models.ManyToManyField(
         Book,
