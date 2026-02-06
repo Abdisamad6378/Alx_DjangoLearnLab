@@ -10,5 +10,5 @@ def list_books(request):
 
 class LibraryDeltaview(DetailView):
     model = library
-    template_name = 'books/library_detail.html'
+    template_name = 'relationship_app/library_detail.html'
     
