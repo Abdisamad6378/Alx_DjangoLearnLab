@@ -1,20 +1,21 @@
 from rest_framework import serializers
-from .models import Book
+from .models import Book, Author
+
+class AuthorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Author
+        fields = ['id', 'name']
 
 class BookSerializer(serializers.ModelSerializer):
+    author_name = serializers.CharField(source='author.name', read_only=True)
+    
     class Meta:
         model = Book
-        fields = ['id', 'title', 'author', 'publication_year']
+        fields = ['id', 'title', 'author', 'author_name', 'publication_year']
     
-    # Custom validation to make it a "custom serializer"
     def validate_publication_year(self, value):
         from datetime import datetime
         current_year = datetime.now().year
         if value > current_year:
             raise serializers.ValidationError("Publication year cannot be in the future")
-        return value
-    
-    def validate_title(self, value):
-        if len(value) < 3:
-            raise serializers.ValidationError("Title must be at least 3 characters")
         return value
