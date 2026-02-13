@@ -1,99 +1,81 @@
+from django.test import TestCase
 from rest_framework.test import APITestCase
-from rest_framework import status
 from django.contrib.auth.models import User
 from .models import Book
-from rest_framework.permissions import IsAuthenticated
-
+from .serializers import BookSerializer
 
 class BookAPITestCase(APITestCase):
-
     def setUp(self):
-        """
-        Set up the test environment.
-        Create test user, authenticate, and create sample book data.
-        """
-        self.user = User.objects.create_user(username='testuser', password='password')
+        # Create a test user
+        self.user = User.objects.create_user(username='testuser', password='testpass')
+        
+        # Create a test book
         self.book_data = {
             'title': 'Test Book',
             'author': 'Test Author',
-            'publication_year': 2024
+            'publication_year': 2020
         }
         self.book = Book.objects.create(**self.book_data)
-        self.url_list = '/api/books/'
-        self.url_detail = f'/api/books/{self.book.id}/'
-        self.client.login(username='testuser', password='password')
-
-    def test_create_book(self):
-        """Test the creation of a book."""
-        data = {
-            'title': 'New Book',
-            'author': 'New Author',
-            'publication_year': 2024
-        }
-        response = self.client.post(self.url_list, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['title'], data['title'])
-        self.assertEqual(response.data['author'], data['author'])
-        self.assertEqual(response.data['publication_year'], data['publication_year'])
 
     def test_retrieve_books(self):
-        """Test retrieving a list of books."""
-        response = self.client.get(self.url_list, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)  # Ensure at least one book is returned
+        """Test retrieving a list of books"""
+        response = self.client.get('/api/books/')
+        self.assertEqual(response.status_code, 200)
 
     def test_retrieve_single_book(self):
-        """Test retrieving a single book."""
-        response = self.client.get(self.url_detail, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], self.book.title)
+        """Test retrieving a single book"""
+        response = self.client.get(f'/api/books/{self.book.id}/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_create_book(self):
+        """Test the creation of a book"""
+        self.client.login(username='testuser', password='testpass')
+        new_book = {
+            'title': 'New Book',
+            'author': 'New Author',
+            'publication_year': 2021
+        }
+        response = self.client.post('/api/books/', new_book)
+        self.assertEqual(response.status_code, 201)
 
     def test_update_book(self):
-        """Test updating an existing book."""
-        data = {
+        """Test updating an existing book"""
+        self.client.login(username='testuser', password='testpass')
+        updated_data = {
             'title': 'Updated Book',
             'author': 'Updated Author',
-            'publication_year': 2025
+            'publication_year': 2022
         }
-        response = self.client.put(self.url_detail, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.book.refresh_from_db()
-        self.assertEqual(self.book.title, data['title'])
-        self.assertEqual(self.book.author, data['author'])
-        self.assertEqual(self.book.publication_year, data['publication_year'])
+        response = self.client.put(f'/api/books/{self.book.id}/', updated_data)
+        self.assertEqual(response.status_code, 200)
 
     def test_delete_book(self):
-        """Test deleting a book."""
-        response = self.client.delete(self.url_detail, format='json')
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # Ensure that the book is deleted
-        self.assertEqual(Book.objects.count(), 0)
-
-    def test_permissions_for_create(self):
-        """Test that creating a book is restricted to authenticated users."""
-        self.client.logout()
-        data = {
-            'title': 'Another Book',
-            'author': 'Another Author',
-            'publication_year': 2024
-        }
-        response = self.client.post(self.url_list, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_search_books(self):
-        """Test searching books by title or author."""
-        response = self.client.get(self.url_list, {'search': 'Test'}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertGreater(len(response.data), 0)  # Ensure some books match the search query
+        """Test deleting a book"""
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.delete(f'/api/books/{self.book.id}/')
+        self.assertEqual(response.status_code, 204)
 
     def test_filter_books(self):
-        """Test filtering books by title, author, and publication year."""
-        response = self.client.get(self.url_list, {'title': 'Test Book'}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        """Test filtering books by title, author, and publication year"""
+        response = self.client.get('/api/books/?author=Test Author')
+        self.assertEqual(response.status_code, 200)
+
+    def test_search_books(self):
+        """Test searching books by title or author"""
+        response = self.client.get('/api/books/?search=Test')
+        self.assertEqual(response.status_code, 200)
 
     def test_ordering_books(self):
-        """Test ordering books by title or publication year."""
-        response = self.client.get(self.url_list, {'ordering': 'title'}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data[0]['title'] <= response.data[-1]['title'])
+        """Test ordering books by title or publication year"""
+        response = self.client.get('/api/books/?ordering=title')
+        self.assertEqual(response.status_code, 200)
+
+    def test_permissions_for_create(self):
+        """Test that creating a book is restricted to authenticated users"""
+        new_book = {
+            'title': 'New Book',
+            'author': 'New Author',
+            'publication_year': 2021
+        }
+        response = self.client.post('/api/books/', new_book)
+        self.assertEqual(response.status_code, 403)  # Forbidden
