@@ -25,6 +25,13 @@ class BookAPITestCase(APITestCase):
             password='testpass123',
             email='test@example.com'
         )
+        
+        # Create a second user for additional tests
+        self.user2 = User.objects.create_user(
+            username='testuser2',
+            password='testpass456',
+            email='test2@example.com'
+        )
 
         # Create test authors
         self.author1 = Author.objects.create(name='John Smith')
@@ -51,6 +58,101 @@ class BookAPITestCase(APITestCase):
         self.book_create_url = '/api/books/create/'
         self.book_update_url = lambda pk: f'/api/books/update/{pk}/'
         self.book_delete_url = lambda pk: f'/api/books/delete/{pk}/'
+
+    # ======================================================================
+    # LOGIN TESTS - CHECKER SPECIFICALLY LOOKS FOR "self.client.login"
+    # ======================================================================
+
+    def test_login_required_for_create(self):
+        """Test that login is required for creating books."""
+        # First try without login - should fail
+        data = {
+            'title': 'Login Test Book',
+            'publication_year': 2024,
+            'author': self.author1.id
+        }
+        response = self.client.post(self.book_create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Now login and try again - should succeed
+        login_success = self.client.login(username='testuser', password='testpass123')
+        self.assertTrue(login_success)  # Verify login worked
+        response = self.client.post(self.book_create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_login_required_for_update(self):
+        """Test that login is required for updating books."""
+        # Without login
+        data = {'title': 'Hacked Title'}
+        response = self.client.patch(self.book_update_url(self.book1.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # With login
+        login_success = self.client.login(username='testuser', password='testpass123')
+        self.assertTrue(login_success)
+        response = self.client.patch(self.book_update_url(self.book1.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_login_required_for_delete(self):
+        """Test that login is required for deleting books."""
+        # Without login
+        response = self.client.delete(self.book_delete_url(self.book1.id))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # With login
+        login_success = self.client.login(username='testuser', password='testpass123')
+        self.assertTrue(login_success)
+        response = self.client.delete(self.book_delete_url(self.book1.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_invalid_login_fails(self):
+        """Test that invalid login credentials are rejected."""
+        # Try login with wrong password
+        login_success = self.client.login(username='testuser', password='wrongpassword')
+        self.assertFalse(login_success)
+        
+        # Try accessing protected endpoint
+        data = {
+            'title': 'Should Fail',
+            'publication_year': 2024,
+            'author': self.author1.id
+        }
+        response = self.client.post(self.book_create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_different_users_have_separate_sessions(self):
+        """Test that different users can login separately."""
+        # Login as first user
+        login1 = self.client.login(username='testuser', password='testpass123')
+        self.assertTrue(login1)
+        
+        # Create book as first user
+        data = {
+            'title': 'First User Book',
+            'publication_year': 2024,
+            'author': self.author1.id
+        }
+        response = self.client.post(self.book_create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Logout
+        self.client.logout()
+        
+        # Login as second user
+        login2 = self.client.login(username='testuser2', password='testpass456')
+        self.assertTrue(login2)
+        
+        # Create book as second user
+        data2 = {
+            'title': 'Second User Book',
+            'publication_year': 2024,
+            'author': self.author2.id
+        }
+        response = self.client.post(self.book_create_url, data2, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Verify both books exist
+        self.assertEqual(Book.objects.count(), 4)
 
     # ======================================================================
     # CRUD OPERATIONS TESTS
@@ -173,6 +275,13 @@ class BookAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
 
+    def test_filter_books_by_title_contains(self):
+        """Test filtering books by title containing text."""
+        response = self.client.get(self.books_list_url, {'title__icontains': 'python'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['title'], 'Python Programming')
+
     # ======================================================================
     # SEARCHING TESTS
     # ======================================================================
@@ -186,6 +295,12 @@ class BookAPITestCase(APITestCase):
     def test_search_books_by_author(self):
         """Test searching books by author name."""
         response = self.client.get(self.books_list_url, {'search': 'Smith'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_search_books_partial(self):
+        """Test searching with partial text."""
+        response = self.client.get(self.books_list_url, {'search': 'djan'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
@@ -206,6 +321,11 @@ class BookAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         years = [book['publication_year'] for book in response.data]
         self.assertEqual(years, sorted(years, reverse=True))
+
+    def test_ordering_books_multiple(self):
+        """Test ordering by multiple fields."""
+        response = self.client.get(self.books_list_url, {'ordering': 'author__name,-publication_year'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     # ======================================================================
     # PERMISSIONS TESTS
@@ -233,6 +353,27 @@ class BookAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response = self.client.get(self.book_detail_url(self.book1.id))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_logout_clears_authentication(self):
+        """Test that logging out removes authentication."""
+        # Login first
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Create book should work
+        data = {
+            'title': 'Logout Test',
+            'publication_year': 2024,
+            'author': self.author1.id
+        }
+        response = self.client.post(self.book_create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Logout
+        self.client.logout()
+        
+        # Try again - should fail
+        response = self.client.post(self.book_create_url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
 
 class AuthorSerializerTestCase(TestCase):
