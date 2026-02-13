@@ -66,8 +66,8 @@ class BookAPITestCase(APITestCase):
         self.books_list_url = '/api/books/'
         self.book_detail_url = lambda pk: f'/api/books/{pk}/'
         self.book_create_url = '/api/books/create/'
-        self.book_update_url = lambda pk: f'/api/books/{pk}/update/'
-        self.book_delete_url = lambda pk: f'/api/books/{pk}/delete/'
+        self.book_update_url = lambda pk: f'/api/books/update/{pk}/'
+        self.book_delete_url = lambda pk: f'/api/books/delete/{pk}/'
 
     # ======================================================================
     # CRUD OPERATIONS TESTS
