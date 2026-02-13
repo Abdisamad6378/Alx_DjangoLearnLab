@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'api_project',
     'api',
     'rest_framework.authtoken',
+    'rest_framework.authentication.TokenAuthentication',
 ]
 
 MIDDLEWARE = [
