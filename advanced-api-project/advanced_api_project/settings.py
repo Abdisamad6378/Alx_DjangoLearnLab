@@ -74,13 +74,16 @@ WSGI_APPLICATION = 'advanced_api_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# Database
+# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-         'TEST': {
-            'NAME': BASE_DIR / 'test_db.sqlite3',  # Explicit test database
-            'MIRROR': 'default', 
+        'TEST': {
+            'NAME': BASE_DIR / 'test_db.sqlite3',  # Separate test database
+            'MIRROR': 'default',  # Mirror the default DB configuration
         }
     }
 }
